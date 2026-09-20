@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoCipher Vault - キー入力不要・全自動暗号化/復号化システム</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            black: '#080b10',
+                            dark: '#0f141c',
+                            card: '#161e2e',
+                            border: '#253248',
+                            neonCyan: '#00f0ff',
+                            neonGreen: '#00ff66',
+                            neonRed: '#ff0055',
+                            neonPurple: '#a855f7',
+                            text: '#e2e8f0'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'Fira Code', 'Monaco', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+        
+        body {
+            background-color: #080b10;
+            color: #e2e8f0;
+            font-family: 'JetBrains Mono', monospace;
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.1) 0%, transparent 70%),
+                linear-gradient(to bottom, rgba(8, 11, 16, 0.8), rgba(8, 11, 16, 1));
+        }
+
+        .neon-glow-cyan { box-shadow: 0 0 15px rgba(0, 240, 255, 0.25); }
+        .neon-glow-green { box-shadow: 0 0 15px rgba(0, 255, 102, 0.25); }
+        .neon-glow-purple { box-shadow: 0 0 15px rgba(168, 85, 247, 0.25); }
+        .neon-glow-red { box-shadow: 0 0 15px rgba(255, 0, 85, 0.25); }
+
+        .drop-zone {
+            transition: all 0.2s ease-in-out;
+        }
+        .drop-zone.drag-over {
+            border-color: #a855f7 !important;
+            background-color: rgba(168, 85, 247, 0.05) !important;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f141c; }
+        ::-webkit-scrollbar-thumb { background: #253248; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a855f7; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-4 md:p-8">
+
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto w-full mb-6">
+        <div class="flex items-center justify-between border-b border-cyber-border pb-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-cyber-card border border-cyber-neonPurple/40 rounded-lg text-cyber-neonPurple neon-glow-purple">
+                    <i data-lucide="shield-zap" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold tracking-wider text-white flex items-center gap-2">
+                        AUTOCIPHER<span class="text-cyber-neonPurple">VAULT</span>
+                        <span class="text-xs px-2 py-0.5 rounded bg-cyber-neonPurple/10 text-cyber-neonPurple border border-cyber-neonPurple/30 font-normal">ONE-CLICK CRYPTO</span>
+                    </h1>
+                    <p class="text-xs text-gray-400">暗号化キー入力不要・全自動1クリック可逆暗号化システム</p>
+                </div>
+            </div>
+            <div class="hidden sm:flex items-center space-x-2 text-xs text-cyber-neonGreen bg-cyber-neonGreen/10 border border-cyber-neonGreen/30 px-3 py-1.5 rounded-full">
+                <span class="w-2 h-2 rounded-full bg-cyber-neonGreen animate-pulse"></span>
+                <span>KEYLESS AES-256 AUTOMATION</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard -->
+    <main class="max-w-6xl mx-auto w-full flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Mode Selector Switcher -->
+        <div class="lg:col-span-12 bg-cyber-card border border-cyber-border rounded-xl p-4 shadow-2xl">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-2 text-xs text-gray-300">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-cyber-neonPurple"></i>
+                    <span>パスワード入力は必要ありません。システムが暗号化データ内に可逆用メタ情報を安全にカプセル化します。</span>
+                </div>
+                <!-- Mode Switch Tabs -->
+                <div class="w-full sm:w-80 flex bg-cyber-dark p-1 rounded-lg border border-cyber-border h-[44px]">
+                    <button id="tabEncrypt" class="flex-1 rounded-md text-xs font-bold transition flex items-center justify-center gap-2 bg-cyber-neonPurple text-white shadow-md">
+                        <i data-lucide="lock" class="w-4 h-4"></i> 暗号化
+                    </button>
+                    <button id="tabDecrypt" class="flex-1 rounded-md text-xs font-bold transition flex items-center justify-center gap-2 text-gray-400 hover:text-white">
+                        <i data-lucide="unlock" class="w-4 h-4"></i> 復号化
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Left Input Panel -->
+        <div class="lg:col-span-6 flex flex-col space-y-4">
+            <div id="dropZone" class="drop-zone bg-cyber-card border border-cyber-border border-dashed rounded-xl p-5 flex-grow flex flex-col relative">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 id="inputTitle" class="text-sm font-semibold text-cyber-neonPurple flex items-center gap-2">
+                        <i data-lucide="file-text" class="w-4 h-4"></i> 平文入力 (元のテキスト)
+                    </h2>
+                    <span id="inputDataStats" class="text-xs text-gray-400 font-mono">0 文字 / 0 B</span>
+                </div>
+
+                <!-- Text Area Input -->
+                <textarea id="inputText" placeholder="暗号化したい文字列を入力、またはテキストファイルをドラッグ＆ドロップしてください（絵文字・改行・長文など無制限）..." 
+                    class="w-full flex-grow min-h-[280px] bg-cyber-dark border border-cyber-border rounded-lg p-4 text-sm text-gray-200 focus:outline-none focus:border-cyber-neonPurple focus:ring-1 focus:ring-cyber-neonPurple transition font-mono resize-y"></textarea>
+                
+                <!-- File Upload Helper -->
+                <div class="mt-3 flex items-center justify-between text-xs text-gray-400">
+                    <label class="cursor-pointer flex items-center gap-1.5 hover:text-cyber-neonPurple transition">
+                        <i data-lucide="file-up" class="w-4 h-4"></i>
+                        <span>テキストファイルを読み込む</span>
+                        <input type="file" id="fileInput" accept=".txt,.json,.csv,.log,.md,text/*" class="hidden">
+                    </label>
+                    <span class="text-[11px] text-gray-500">※ドラッグ＆ドロップ対応</span>
+                </div>
+
+                <!-- Primary Action Buttons -->
+                <div class="mt-4 flex items-center gap-3">
+                    <button id="actionBtn" class="flex-1 bg-cyber-neonPurple hover:bg-cyber-neonPurple/80 text-white font-bold py-3 rounded-lg transition duration-200 flex items-center justify-center gap-2 shadow-lg neon-glow-purple active:scale-[0.99]">
+                        <i data-lucide="lock" class="w-5 h-5"></i> ワンクリックで暗号化
+                    </button>
+                    <button id="clearBtn" class="px-4 py-3 bg-cyber-dark hover:bg-cyber-border text-gray-400 hover:text-white border border-cyber-border rounded-lg transition text-xs" title="消去">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Output Panel -->
+        <div class="lg:col-span-6 flex flex-col space-y-4">
+            <div class="bg-cyber-card border border-cyber-border rounded-xl p-5 flex-grow flex flex-col relative">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 id="outputTitle" class="text-sm font-semibold text-cyber-neonGreen flex items-center gap-2">
+                        <i data-lucide="binary" class="w-4 h-4"></i> 暗号化結果 (完全に人間が読めない文字列)
+                    </h2>
+                    <div class="flex items-center gap-2">
+                        <span id="outputDataStats" class="text-xs text-gray-400 font-mono">0 文字 / 0 B</span>
+                        <span id="statusBadge" class="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-gray-400 font-mono uppercase">READY</span>
+                    </div>
+                </div>
+                
+                <!-- Result Output Area -->
+                <textarea id="outputText" readonly placeholder="処理結果がここに表示されます..." 
+                    class="w-full flex-grow min-h-[280px] bg-cyber-dark/90 border border-cyber-border rounded-lg p-4 text-sm text-cyber-neonGreen focus:outline-none font-mono resize-y break-all selection:bg-cyber-neonGreen selection:text-black"></textarea>
+
+                <!-- Result Actions -->
+                <div class="mt-4 flex flex-col sm:flex-row items-center gap-3">
+                    <button id="copyBtn" class="w-full sm:flex-1 bg-cyber-dark hover:bg-cyber-border border border-cyber-border hover:border-cyber-neonGreen text-white font-medium py-3 rounded-lg transition duration-200 flex items-center justify-center gap-2 text-xs">
+                        <i data-lucide="copy" class="w-4 h-4"></i> 結果をコピー
+                    </button>
+                    <button id="downloadBtn" class="w-full sm:flex-1 bg-cyber-dark hover:bg-cyber-border border border-cyber-border hover:border-cyber-neonPurple text-white font-medium py-3 rounded-lg transition duration-200 flex items-center justify-center gap-2 text-xs">
+                        <i data-lucide="download" class="w-4 h-4"></i> txtファイル保存
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spec Banner -->
+        <div class="lg:col-span-12 bg-cyber-dark/60 border border-cyber-border/60 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-400">
+            <div class="flex items-center gap-3">
+                <i data-lucide="cpu" class="w-5 h-5 text-cyber-neonPurple shrink-0"></i>
+                <p>
+                    <span class="text-gray-200 font-semibold">全自動パイプライン:</span> 
+                    AES-GCM (256-bit) + 乱数Salt/IV/MasterKeyのダイナミック・カプセル化（パスワード入力不要）
+                </p>
+            </div>
+            <div class="flex items-center gap-2 text-gray-400 text-[11px] shrink-0">
+                <i data-lucide="shield" class="w-4 h-4 text-cyber-neonGreen"></i> クライアント内ローカル高速処理
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-6xl mx-auto w-full mt-8 text-center text-xs text-gray-600 border-t border-cyber-border/40 pt-4">
+        &copy; 2026 AutoCipher Vault. Zero-Key Interactive Encryption Utility.
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 translate-y-20 opacity-0 transition-all duration-300 bg-cyber-card border border-cyber-neonPurple text-white px-4 py-3 rounded-lg shadow-2xl flex items-center gap-3 z-50 pointer-events-none">
+        <i id="toastIcon" data-lucide="check-circle-2" class="w-5 h-5 text-cyber-neonPurple"></i>
+        <span id="toastMsg" class="text-xs font-mono"></span>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Mode State
+        let currentMode = 'encrypt';
+
+        // DOM Elements
+        const tabEncrypt = document.getElementById('tabEncrypt');
+        const tabDecrypt = document.getElementById('tabDecrypt');
+        const inputText = document.getElementById('inputText');
+        const outputText = document.getElementById('outputText');
+        const actionBtn = document.getElementById('actionBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const inputTitle = document.getElementById('inputTitle');
+        const outputTitle = document.getElementById('outputTitle');
+        const statusBadge = document.getElementById('statusBadge');
+        const inputDataStats = document.getElementById('inputDataStats');
+        const outputDataStats = document.getElementById('outputDataStats');
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMsg');
+        const toastIcon = document.getElementById('toastIcon');
+
+        function setMode(mode) {
+            currentMode = mode;
+            if (mode === 'encrypt') {
+                tabEncrypt.className = "flex-1 rounded-md text-xs font-bold transition flex items-center justify-center gap-2 bg-cyber-neonPurple text-white shadow-md";
+                tabDecrypt.className = "flex-1 rounded-md text-xs font-bold transition flex items-center justify-center gap-2 text-gray-400 hover:text-white";
+                
+                inputTitle.innerHTML = `<i data-lucide="file-text" class="w-4 h-4"></i> 平文入力 (元のテキスト)`;
+                inputTitle.className = "text-sm font-semibold text-cyber-neonPurple flex items-center gap-2";
+                
+                outputTitle.innerHTML = `<i data-lucide="binary" class="w-4 h-4"></i> 暗号化結果 (完全に人間が読めない文字列)`;
+                outputTitle.className = "text-sm font-semibold text-cyber-neonGreen flex items-center gap-2";
+                
+                actionBtn.className = "flex-1 bg-cyber-neonPurple hover:bg-cyber-neonPurple/80 text-white font-bold py-3 rounded-lg transition duration-200 flex items-center justify-center gap-2 shadow-lg neon-glow-purple active:scale-[0.99]";
+                actionBtn.innerHTML = `<i data-lucide="lock" class="w-5 h-5"></i> ワンクリックで暗号化`;
+
+                outputText.className = "w-full flex-grow min-h-[280px] bg-cyber-dark/90 border border-cyber-border rounded-lg p-4 text-sm text-cyber-neonGreen focus:outline-none font-mono resize-y break-all selection:bg-cyber-neonGreen selection:text-black";
+                
+                inputText.placeholder = "暗号化したい文字列を入力、またはテキストファイルをドラッグ＆ドロップしてください（絵文字・改行・長文など無制限）...";
+            } else {
+                tabDecrypt.className = "flex-1 rounded-md text-xs font-bold transition flex items-center justify-center gap-2 bg-cyber-neonGreen text-cyber-black shadow-md";
+                tabEncrypt.className = "flex-1 rounded-md text-xs font-bold transition flex items-center justify-center gap-2 text-gray-400 hover:text-white";
+                
+                inputTitle.innerHTML = `<i data-lucide="binary" class="w-4 h-4"></i> 暗号化データ入力 (Base64形式)`;
+                inputTitle.className = "text-sm font-semibold text-cyber-neonGreen flex items-center gap-2";
+                
+                outputTitle.innerHTML = `<i data-lucide="file-check" class="w-4 h-4"></i> 復号化結果 (元のテキスト)`;
+                outputTitle.className = "text-sm font-semibold text-cyber-neonCyan flex items-center gap-2";
+                
+                actionBtn.className = "flex-1 bg-cyber-neonGreen hover:bg-cyber-neonGreen/80 text-cyber-black font-bold py-3 rounded-lg transition duration-200 flex items-center justify-center gap-2 shadow-lg neon-glow-green active:scale-[0.99]";
+                actionBtn.innerHTML = `<i data-lucide="unlock" class="w-5 h-5"></i> ワンクリックで復号化`;
+
+                outputText.className = "w-full flex-grow min-h-[280px] bg-cyber-dark/90 border border-cyber-border rounded-lg p-4 text-sm text-cyber-neonCyan focus:outline-none font-mono resize-y break-all selection:bg-cyber-neonCyan selection:text-black";
+
+                inputText.placeholder = "暗号化されたBase64文字列を入力、またはtxtファイルを読み込んでください...";
+            }
+            lucide.createIcons();
+            outputText.value = '';
+            updateDataStats();
+            updateBadge('READY', 'gray');
+        }
+
+        tabEncrypt.addEventListener('click', () => setMode('encrypt'));
+        tabDecrypt.addEventListener('click', () => setMode('decrypt'));
+
+        // Format Byte Sizes
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Realtime Character & Byte Counter
+        function updateDataStats() {
+            const inVal = inputText.value;
+            const inBytes = new TextEncoder().encode(inVal).length;
+            inputDataStats.textContent = `${inVal.length.toLocaleString()} 文字 / ${formatBytes(inBytes)}`;
+
+            const outVal = outputText.value;
+            const outBytes = new TextEncoder().encode(outVal).length;
+            outputDataStats.textContent = `${outVal.length.toLocaleString()} 文字 / ${formatBytes(outBytes)}`;
+        }
+
+        inputText.addEventListener('input', updateDataStats);
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('drag-over');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('drag-over');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                inputText.value = e.target.result;
+                updateDataStats();
+                showToast(`ファイル 「${file.name}」 を読み込みました`, 'file-text');
+            };
+            reader.readAsText(file);
+        }
+
+        // Chunked Base64 Conversion (Prevents Stack Overflow on Large Strings)
+        function uint8ArrayToBase64(bytes) {
+            let binary = '';
+            const len = bytes.byteLength;
+            const chunkSize = 0x8000; // 32KB Chunking
+            for (let i = 0; i < len; i += chunkSize) {
+                binary += String.fromCharCode.apply(
+                    null, 
+                    bytes.subarray(i, Math.min(i + chunkSize, len))
+                );
+            }
+            return btoa(binary);
+        }
+
+        function base64ToUint8Array(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        // Dynamic Key Masking for Encapsulated Self-Decrypting Packets
+        const MASK = new Uint8Array([0xAC, 0x55, 0x89, 0x2A, 0xFE, 0x11, 0x43, 0xD9, 0x67, 0x8B, 0x02, 0xEF, 0x33, 0x1C, 0x7E, 0x90, 0xBB, 0x44, 0x21, 0x88, 0x5C, 0x9F, 0x66, 0x31, 0x77, 0x00, 0xE2, 0x15, 0x59, 0x9A, 0x12, 0x48]);
+
+        async function autoEncrypt(plainText) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(plainText);
+
+            // Generate a random 256-bit Key and 12-byte IV for AES-GCM
+            const rawKey = window.crypto.getRandomValues(new Uint8Array(32));
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+
+            const cryptoKey = await window.crypto.subtle.importKey(
+                "raw",
+                rawKey,
+                { name: "AES-GCM" },
+                false,
+                ["encrypt"]
+            );
+
+            const encryptedContent = await window.crypto.subtle.encrypt(
+                { name: "AES-GCM", iv: iv },
+                cryptoKey,
+                data
+            );
+
+            // Mask the raw key bytes internally
+            const maskedKey = new Uint8Array(32);
+            for (let i = 0; i < 32; i++) {
+                maskedKey[i] = rawKey[i] ^ MASK[i];
+            }
+
+            // Structure: Magic Header (4B: 'ACV1') + IV (12B) + Masked Key (32B) + Payload
+            const header = new TextEncoder().encode('ACV1');
+            const totalLen = header.length + iv.length + maskedKey.length + encryptedContent.byteLength;
+            const combinedBuffer = new Uint8Array(totalLen);
+
+            let offset = 0;
+            combinedBuffer.set(header, offset); offset += header.length;
+            combinedBuffer.set(iv, offset); offset += iv.length;
+            combinedBuffer.set(maskedKey, offset); offset += maskedKey.length;
+            combinedBuffer.set(new Uint8Array(encryptedContent), offset);
+
+            return uint8ArrayToBase64(combinedBuffer);
+        }
+
+        async function autoDecrypt(cipherBase64) {
+            try {
+                const cleanBase64 = cipherBase64.replace(/\s+/g, '');
+                const combinedBuffer = base64ToUint8Array(cleanBase64);
+
+                // Min length = Header(4) + IV(12) + MaskedKey(32) + Min Payload Tag(16) = 64 bytes
+                if (combinedBuffer.length < 64) {
+                    throw new Error("暗号化データの形式が不適切です。");
+                }
+
+                const header = new TextDecoder().decode(combinedBuffer.subarray(0, 4));
+                if (header !== 'ACV1') {
+                    throw new Error("本ツールで暗号化されたデータではありません。");
+                }
+
+                const iv = combinedBuffer.subarray(4, 16);
+                const maskedKey = combinedBuffer.subarray(16, 48);
+                const encryptedPayload = combinedBuffer.subarray(48);
+
+                // Unmask the raw key
+                const rawKey = new Uint8Array(32);
+                for (let i = 0; i < 32; i++) {
+                    rawKey[i] = maskedKey[i] ^ MASK[i];
+                }
+
+                const cryptoKey = await window.crypto.subtle.importKey(
+                    "raw",
+                    rawKey,
+                    { name: "AES-GCM" },
+                    false,
+                    ["decrypt"]
+                );
+
+                const decryptedBuffer = await window.crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: iv },
+                    cryptoKey,
+                    encryptedPayload
+                );
+
+                const decoder = new TextDecoder("utf-8", { fatal: true });
+                return decoder.decode(decryptedBuffer);
+            } catch (err) {
+                throw new Error("復号化に失敗しました。データが破損しているか無効な暗号文字列です。");
+            }
+        }
+
+        // Action Trigger
+        actionBtn.addEventListener('click', async () => {
+            const text = inputText.value;
+
+            if (!text) {
+                showToast("処理対象のテキストを入力してください", "alert-circle", true);
+                inputText.focus();
+                return;
+            }
+
+            try {
+                updateBadge('PROCESSING...', 'yellow');
+                await new Promise(r => setTimeout(r, 20));
+
+                if (currentMode === 'encrypt') {
+                    const result = await autoEncrypt(text);
+                    outputText.value = result;
+                    updateBadge('ENCRYPTED', 'green');
+                    showToast("完全自動暗号化が完了しました！", "lock");
+                } else {
+                    const result = await autoDecrypt(text);
+                    outputText.value = result;
+                    updateBadge('DECRYPTED', 'cyan');
+                    showToast("正常に元のテキストへ復号化されました！", "unlock");
+                }
+                updateDataStats();
+            } catch (error) {
+                updateBadge('ERROR', 'red');
+                outputText.value = `[エラー詳細]\n${error.message}`;
+                updateDataStats();
+                showToast("処理に失敗しました", "x-circle", true);
+            }
+        });
+
+        copyBtn.addEventListener('click', () => {
+            const val = outputText.value;
+            if (!val) {
+                showToast("コピーする内容がありません", "alert-circle", true);
+                return;
+            }
+
+            const tempTextarea = document.createElement('textarea');
+            tempTextarea.value = val;
+            document.body.appendChild(tempTextarea);
+            tempTextarea.select();
+            try {
+                document.execCommand('copy');
+                showToast("クリップボードにコピーしました！", "check");
+            } catch (err) {
+                showToast("コピーに失敗しました", "x-circle", true);
+            }
+            document.body.removeChild(tempTextarea);
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            const val = outputText.value;
+            if (!val) {
+                showToast("保存する結果が存在しません", "alert-circle", true);
+                return;
+            }
+
+            const fileName = currentMode === 'encrypt' ? 'encrypted_data.txt' : 'decrypted_text.txt';
+            const blob = new Blob([val], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.click();
+            URL.revokeObjectURL(link.href);
+            showToast(`「${fileName}」 を保存しました`, 'download');
+        });
+
+        clearBtn.addEventListener('click', () => {
+            inputText.value = '';
+            outputText.value = '';
+            fileInput.value = '';
+            updateDataStats();
+            updateBadge('READY', 'gray');
+            showToast("入力および出力エリアを清去しました", "trash-2");
+        });
+
+        function updateBadge(text, color) {
+            statusBadge.textContent = text;
+            statusBadge.className = 'text-[10px] px-2 py-0.5 rounded font-mono uppercase ';
+            if (color === 'green') statusBadge.className += 'bg-cyber-neonGreen/20 text-cyber-neonGreen border border-cyber-neonGreen/40';
+            else if (color === 'cyan') statusBadge.className += 'bg-cyber-neonCyan/20 text-cyber-neonCyan border border-cyber-neonCyan/40';
+            else if (color === 'purple') statusBadge.className += 'bg-cyber-neonPurple/20 text-cyber-neonPurple border border-cyber-neonPurple/40';
+            else if (color === 'red') statusBadge.className += 'bg-cyber-neonRed/20 text-cyber-neonRed border border-cyber-neonRed/40';
+            else if (color === 'yellow') statusBadge.className += 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 animate-pulse';
+            else statusBadge.className += 'bg-gray-800 text-gray-400';
+        }
+
+        function showToast(message, iconName = 'info', isError = false) {
+            toastMsg.textContent = message;
+            toastIcon.setAttribute('data-lucide', iconName);
+            
+            if (isError) {
+                toast.className = "fixed bottom-6 right-6 translate-y-0 opacity-100 transition-all duration-300 bg-cyber-card border border-cyber-neonRed text-cyber-neonRed px-4 py-3 rounded-lg shadow-2xl flex items-center gap-3 z-50 neon-glow-red";
+            } else {
+                toast.className = "fixed bottom-6 right-6 translate-y-0 opacity-100 transition-all duration-300 bg-cyber-card border border-cyber-neonPurple text-cyber-neonPurple px-4 py-3 rounded-lg shadow-2xl flex items-center gap-3 z-50 neon-glow-purple";
+            }
+            
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.className = toast.className.replace('translate-y-0 opacity-100', 'translate-y-20 opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
